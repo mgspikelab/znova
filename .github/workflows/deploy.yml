@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Note: If this is a React/Vite/Node project, un-comment the lines below to build it first:
+      # Note: Un-comment build steps below if you add a build framework like Vite or React later
       # - name: Setup Node.js
       #   uses: actions/setup-node@v4
       #   with:
@@ -31,5 +31,10 @@ jobs:
 
       - name: Sync to S3 Bucket
         run: |
-          aws s3 sync . s3://dev.quantum.zedtex.us --delete --exclude ".git/*" --exclude ".github/*"
-          # If deploying a built dist/out folder, change '.' above to './dist' or './build'
+          aws s3 sync . s3://zedtex.us --delete --exclude ".git/*" --exclude ".github/*"
+
+      - name: Invalidate CloudFront Cache
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
