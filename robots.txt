@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /.github/
+Disallow: /.vscode/
+
+Sitemap: https://www.zedtex.us/sitemap.xml
