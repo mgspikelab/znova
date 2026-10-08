@@ -79,6 +79,13 @@ function openContactModal(e) {
   document.body.style.overflow = 'hidden';
   const nameField = document.getElementById('cf-name');
   if (nameField) nameField.focus();
+  scheduleTurnstile();
+}
+
+function resetTurnstile() {
+  if (window.turnstile && turnstileWidgetId !== null) {
+    window.turnstile.reset(turnstileWidgetId);
+  }
 }
 
 function resetContactForm() {
@@ -86,6 +93,7 @@ function resetContactForm() {
   if (contactAbort) contactAbort.abort();
   contactForm.reset();
   contactForm.classList.remove('is-sent');
+  resetTurnstile();
   if (contactError) {
     contactError.hidden = true;
     contactError.textContent = 'Please fill in your name, email, and message.';
@@ -114,6 +122,9 @@ if (contactOverlay) {
   contactOverlay.addEventListener('click', (e) => {
     if (e.target === contactOverlay) closeContactModal();
   });
+  contactOverlay.addEventListener('transitionend', (e) => {
+    if (e.target === contactOverlay && e.propertyName === 'opacity') scheduleTurnstile();
+  });
 }
 
 document.addEventListener('keydown', (e) => {
@@ -123,10 +134,45 @@ document.addEventListener('keydown', (e) => {
 });
 
 const CONTACT_ENDPOINT = 'https://lucidop-titan-api-dev-141049784790.us-central1.run.app/api/contact';
+const TURNSTILE_SITE_KEY = '0x4AAAAAAFQ4VnFUgrxc0SZZ';
 
 let contactSuccess = null;
 let contactSubmit = null;
 let contactAbort = null;
+let turnstileWidgetId = null;
+let turnstileHost = null;
+
+function overlayIsVisible() {
+  if (!contactOverlay || !contactOverlay.classList.contains('open')) return false;
+  const style = window.getComputedStyle(contactOverlay);
+  return style.visibility === 'visible' && Number.parseFloat(style.opacity) > 0.9;
+}
+
+function mountTurnstile() {
+  if (!TURNSTILE_SITE_KEY || !turnstileHost || !window.turnstile || turnstileWidgetId !== null) return;
+  if (!overlayIsVisible()) return;
+  turnstileWidgetId = window.turnstile.render(turnstileHost, {
+    sitekey: TURNSTILE_SITE_KEY,
+    theme: 'dark',
+    appearance: 'always',
+    'error-callback': (code) => {
+      turnstileHost.dataset.error = String(code);
+    }
+  });
+}
+
+function scheduleTurnstile() {
+  if (!turnstileHost || turnstileWidgetId !== null) return;
+  if (overlayIsVisible()) {
+    mountTurnstile();
+    return;
+  }
+  window.setTimeout(mountTurnstile, 300);
+}
+
+window.onNovaTurnstileLoad = function () {
+  if (window.turnstile) window.turnstile.ready(scheduleTurnstile);
+};
 
 if (contactForm) {
   const trap = document.createElement('input');
@@ -148,6 +194,24 @@ if (contactForm) {
 
   contactSubmit = contactForm.querySelector('.modal-submit');
 
+  turnstileHost = document.getElementById('contactTurnstile');
+  if (!turnstileHost) {
+    turnstileHost = document.createElement('div');
+    turnstileHost.id = 'contactTurnstile';
+    turnstileHost.className = 'contact-turnstile';
+    const turnstileAnchor = contactError || contactSubmit;
+    if (turnstileAnchor) contactForm.insertBefore(turnstileHost, turnstileAnchor);
+  }
+
+  if (TURNSTILE_SITE_KEY && !document.getElementById('cf-turnstile-script')) {
+    const turnstileScript = document.createElement('script');
+    turnstileScript.id = 'cf-turnstile-script';
+    turnstileScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onNovaTurnstileLoad';
+    turnstileScript.async = true;
+    turnstileScript.defer = true;
+    document.head.appendChild(turnstileScript);
+  }
+
   contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -160,6 +224,14 @@ if (contactForm) {
 
     if (!name || !email || !message || !emailOk) {
       contactError.textContent = 'Please fill in your name, email, and message.';
+      contactError.hidden = false;
+      return;
+    }
+    const turnstileToken = window.turnstile && turnstileWidgetId !== null
+      ? window.turnstile.getResponse(turnstileWidgetId)
+      : '';
+    if (!turnstileToken) {
+      contactError.textContent = 'Please complete the verification check and try again.';
       contactError.hidden = false;
       return;
     }
@@ -180,18 +252,28 @@ if (contactForm) {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ name, email, phone, message, leaveBlank }),
+        body: JSON.stringify({ name, email, phone, message, leaveBlank, turnstileToken }),
         signal: contactAbort.signal
       });
       if (!response.ok) {
-        throw new Error('Contact request failed');
+        let detail = '';
+        try {
+          const body = await response.json();
+          detail = body && body.message ? body.message : '';
+        } catch (parseError) {
+          detail = '';
+        }
+        throw new Error(detail || 'Contact request failed');
       }
       contactSuccess.textContent = `Thank you, ${name}. Your message is with the ZEDTEX team. We will reply to ${email}.`;
       contactSuccess.hidden = false;
       contactForm.classList.add('is-sent');
     } catch (err) {
       if (err.name === 'AbortError') return;
-      contactError.textContent = "We couldn't send your message. Please email info@zedtex.us and we will take it from there.";
+      resetTurnstile();
+      contactError.textContent = err.message && err.message !== 'Contact request failed'
+        ? err.message
+        : "We couldn't send your message. Please email info@zedtex.us and we will take it from there.";
       contactError.hidden = false;
       if (contactSubmit) {
         contactSubmit.disabled = false;
