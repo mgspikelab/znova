@@ -536,6 +536,7 @@ p.lede{ font-size:18px; color:var(--slate-soft); max-width:640px; }
 .careers{ background:var(--ink-2); padding:100px 0; border-top:1px solid var(--line-dark); border-bottom:1px solid var(--line-dark); }
 .careers-grid{ display:grid; grid-template-columns:1fr 1fr; gap:50px; align-items:center; }
 .careers-copy p{ color:var(--mist); font-size:16px; margin-bottom:24px; max-width:440px; }
+.careers-jobs{ margin-top:64px; }
 @media (max-width:760px){ .careers-grid{ grid-template-columns:1fr; } }
 /* Fix visibility by setting main text to white */
 .careers h2, 
