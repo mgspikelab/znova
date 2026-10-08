@@ -409,8 +409,22 @@ p.lede{ font-size:18px; color:var(--slate-soft); max-width:640px; }
   background:rgba(255,80,80,0.08); border:1px solid rgba(255,80,80,0.25);
   padding:10px 12px; border-radius:4px;
 }
+.modal-success{
+  font-size:14.5px; line-height:1.55; color:#fff;
+  background:rgba(63,227,208,0.08); border:1px solid rgba(63,227,208,0.35);
+  padding:14px; border-radius:4px;
+}
+.modal-form.is-sent > label,
+.modal-form.is-sent > .modal-submit,
+.modal-form.is-sent > .modal-note,
+.modal-form.is-sent > .modal-error{ display:none; }
 .modal-submit{ justify-content:center; margin-top:6px; }
+.modal-submit:disabled{ opacity:0.7; cursor:progress; }
 .modal-note{ font-size:12.5px; color:var(--mist); text-align:center; margin-top:4px; }
+.hp-field{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
 
 @media (max-width:480px){
   .modal{ padding:32px 22px 26px; }
